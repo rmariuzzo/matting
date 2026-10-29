@@ -1,16 +1,33 @@
 <script lang="ts">
+  import type { Attachment } from 'svelte/attachments'
   import Icon from './Icon.svelte'
-  import { borderColor, defaultMattingColor, drawMatted, exportExtension, exportType, presets, toBlob } from './lib'
+  import {
+    borderColor,
+    defaultMattingColor,
+    defaultPadding,
+    drawMatted,
+    exportExtension,
+    exportType,
+    maxPadding,
+    presets,
+    toBlob,
+  } from './lib'
 
   let image = $state<HTMLImageElement>()
   let fileName = $state('')
   let presetIndex = $state(0)
   let rotated = $state(false)
   let color = $state(defaultMattingColor)
+  let padding = $state(defaultPadding)
+  let adjusting = $state(false)
+  let adjustTimer: ReturnType<typeof setTimeout>
   let dragging = $state(false)
   let error = $state('')
   let internalDrag = false
   let output = $state<{ blob: Blob; url: string }>()
+  // Whether `output` matches the current settings; until it does, the live canvas is shown.
+  let fresh = $state(false)
+  let liveCanvas = $state<HTMLCanvasElement>()
   const canvas = document.createElement('canvas')
 
   const ratio = $derived.by(() => {
@@ -28,20 +45,96 @@
   // drag-out all use the same encoded file.
   $effect(() => {
     if (!image) return
-    const [img, r, c] = [image, ratio, color]
+    const [img, r, c, p] = [image, ratio, color, padding]
+    fresh = false
+    // Encoding mid-gesture is wasted work; the live canvas covers it.
+    if (adjusting) return
     let cancelled = false
     const timer = setTimeout(async () => {
-      drawMatted(canvas, img, r, c)
+      drawMatted(canvas, img, r, c, p)
       const blob = await toBlob(canvas)
       if (cancelled) return
       if (output) URL.revokeObjectURL(output.url)
       output = { blob, url: URL.createObjectURL(blob) }
+      fresh = true
     }, 120)
     return () => {
       cancelled = true
       clearTimeout(timer)
     }
   })
+
+  // A downscaled render drawn straight to the screen, so gestures and color changes feel instant.
+  $effect(() => {
+    if (!image || !liveCanvas || fresh) return
+    const scale = Math.min(1, 2048 / Math.max(image.width, image.height))
+    drawMatted(liveCanvas, image, ratio, color, padding, scale)
+  })
+
+  function setPadding(value: number) {
+    padding = Math.min(maxPadding, Math.max(0, value))
+    adjusting = true
+    clearTimeout(adjustTimer)
+    adjustTimer = setTimeout(() => (adjusting = false), 400)
+  }
+
+  // Scroll or pinch on the stage resizes the matting, like zooming the image inside the frame.
+  const gestures: Attachment<HTMLElement> = (stage) => {
+    function onWheel(e: WheelEvent) {
+      if (!image) return
+      e.preventDefault()
+      // Trackpad pinches arrive as ctrl+wheel with small deltas; Firefox may report lines.
+      const delta = e.deltaY * (e.deltaMode === 1 ? 16 : 1)
+      setPadding(padding + delta * (e.ctrlKey ? 0.004 : 0.0005))
+    }
+
+    const touches = new Map<number, { x: number; y: number }>()
+    let pinch: { spread: number; fraction: number } | undefined
+    let pinched = false
+    const spread = () => {
+      const [a, b] = [...touches.values()]
+      return Math.hypot(a.x - b.x, a.y - b.y) || 1
+    }
+
+    function onPointerDown(e: PointerEvent) {
+      if (e.pointerType !== 'touch' || !image) return
+      if (touches.size === 0) pinched = false
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      if (touches.size === 2) {
+        // The image's share of the frame scales with the finger spread.
+        pinch = { spread: spread(), fraction: 1 / (1 + 2 * padding) }
+        pinched = true
+      }
+    }
+    function onPointerMove(e: PointerEvent) {
+      if (!touches.has(e.pointerId)) return
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      if (pinch && touches.size === 2) setPadding((pinch.spread / (pinch.fraction * spread()) - 1) / 2)
+    }
+    function onPointerUp(e: PointerEvent) {
+      touches.delete(e.pointerId)
+      if (touches.size < 2) pinch = undefined
+    }
+    // A pinch must not count as a tap that opens the file picker.
+    function onClick(e: MouseEvent) {
+      if (pinched) e.preventDefault()
+    }
+
+    stage.addEventListener('wheel', onWheel, { passive: false })
+    stage.addEventListener('pointerdown', onPointerDown)
+    stage.addEventListener('pointermove', onPointerMove)
+    stage.addEventListener('pointerup', onPointerUp)
+    stage.addEventListener('pointercancel', onPointerUp)
+    stage.addEventListener('click', onClick)
+    return () => {
+      stage.removeEventListener('wheel', onWheel)
+      stage.removeEventListener('pointerdown', onPointerDown)
+      stage.removeEventListener('pointermove', onPointerMove)
+      stage.removeEventListener('pointerup', onPointerUp)
+      stage.removeEventListener('pointercancel', onPointerUp)
+      stage.removeEventListener('click', onClick)
+    }
+  }
 
   function loadFile(file: File | undefined) {
     error = ''
@@ -125,6 +218,11 @@
     dragging = false
     if (!internalDrag) loadFile(e.dataTransfer?.files[0])
   }}
+  onkeydown={(e) => {
+    if (!image || e.metaKey || e.ctrlKey || e.altKey) return
+    if (e.key === '+' || e.key === '=') setPadding(padding + 0.01)
+    else if (e.key === '-') setPadding(padding - 0.01)
+  }}
   onpaste={(e) => {
     const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'))
     if (!file) return
@@ -158,10 +256,15 @@
     </nav>
   {/if}
 
-  <label class="stage" class:dragging title={image ? 'Drag out to share · click, drop or paste to replace' : undefined}>
+  <label
+    class="stage"
+    class:dragging
+    title={image ? 'Scroll or pinch to resize the matting · drag out to share · click, drop or paste to replace' : undefined}
+    {@attach gestures}
+  >
     <input type="file" accept="image/*" onchange={(e) => loadFile(e.currentTarget.files?.[0])} />
     {#if image}
-      {#if output}
+      {#if output && fresh}
         <img
           src={output.url}
           alt="Matted preview"
@@ -169,6 +272,8 @@
           ondragend={() => (internalDrag = false)}
         />
       {/if}
+      <canvas bind:this={liveCanvas} hidden={fresh}></canvas>
+      <span class="hint" class:visible={adjusting}>Padding {Math.round(padding * 100)}%</span>
     {:else}
       <span class="prompt">Click, drag or paste an image</span>
     {/if}
@@ -269,6 +374,14 @@
     border-radius: 24px;
   }
 
+  .stage > * {
+    grid-area: 1 / 1;
+  }
+
+  .app:not(.empty) .stage {
+    touch-action: none;
+  }
+
   .empty .stage {
     border: 4px dashed var(--color-stone-dark);
   }
@@ -288,10 +401,32 @@
     text-align: center;
   }
 
-  img {
+  img,
+  canvas {
     max-width: 100%;
     max-height: 100%;
     box-shadow: 0 4px 24px rgb(0 0 0 / 0.18);
+  }
+
+  canvas[hidden] {
+    display: none;
+  }
+
+  .hint {
+    align-self: end;
+    margin-bottom: 1rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    background: var(--color-ink);
+    color: var(--color-sand-light);
+    font-weight: 600;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .hint.visible {
+    opacity: 1;
   }
 
   .error {

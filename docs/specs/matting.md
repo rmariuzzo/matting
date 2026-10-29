@@ -16,7 +16,13 @@ A simple client-side app that takes an image and adds matting around it so the r
 ## Matting
 
 - The image is centered and never scaled or cropped.
-- Every side gets at least 6% of the image's longer side as matting; the canvas then grows on one axis to reach the selected ratio.
+- Every side gets at least the **padding** (default 6% of the image's longer side) as matting; the canvas then grows on one axis to reach the selected ratio.
+- Padding is adjustable from 0% to 50%, like zooming the image inside the frame (smaller image = more matting):
+  - **Desktop:** scroll over the preview (scroll down adds matting); a trackpad pinch works too. `+` / `-` keys step it by 1%.
+  - **Mobile:** pinch the preview; the image's share of the frame follows the finger spread. A pinch never opens the file picker.
+  - A "Padding N%" pill shows over the preview while adjusting, then fades.
+  - It is kept when a new image is loaded.
+- While settings change, a downscaled preview is drawn straight to the screen; the JPEG is encoded once changes settle.
 - Matting color: detected from the image's edges each time an image is loaded, and changeable from the bottom bar.
   - The outer edge pixels (on a ~100px downscaled copy) are grouped into coarse color buckets; the average of the most common bucket wins, so a dominant edge color beats a muddy overall average.
   - Transparent edge pixels are ignored. If no usable pixels remain, it falls back to Sand light (`#EBE2CC`) from the [color scheme](color-scheme.md).

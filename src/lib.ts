@@ -11,19 +11,29 @@ export const exportType = 'image/jpeg'
 export const exportExtension = 'jpg'
 
 // Minimum matting on every side, as a fraction of the image's longer side.
-const minMargin = 0.06
+export const defaultPadding = 0.06
+export const maxPadding = 0.5
 
-export function drawMatted(canvas: HTMLCanvasElement, image: HTMLImageElement, ratio: Ratio, color: string) {
-  const margin = Math.round(Math.max(image.width, image.height) * minMargin)
+// `scale` shrinks the whole render (for a quick live preview); 1 is full resolution.
+export function drawMatted(
+  canvas: HTMLCanvasElement,
+  image: HTMLImageElement,
+  ratio: Ratio,
+  color: string,
+  padding: number,
+  scale = 1,
+) {
+  const margin = Math.round(Math.max(image.width, image.height) * padding)
   let width = image.width + margin * 2
   let height = image.height + margin * 2
   const target = ratio.w / ratio.h
   if (width / height < target) width = Math.round(height * target)
   else height = Math.round(width / target)
 
-  canvas.width = width
-  canvas.height = height
+  canvas.width = Math.round(width * scale)
+  canvas.height = Math.round(height * scale)
   const ctx = canvas.getContext('2d')!
+  ctx.scale(scale, scale)
   ctx.fillStyle = color
   ctx.fillRect(0, 0, width, height)
   ctx.drawImage(image, Math.round((width - image.width) / 2), Math.round((height - image.height) / 2))
