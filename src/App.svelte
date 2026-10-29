@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte'
   import { borderColor, defaultMattingColor, drawMatted, exportExtension, exportType, presets, toBlob } from './lib'
 
   let image = $state<HTMLImageElement>()
@@ -80,6 +81,26 @@
     e.dataTransfer.setData('DownloadURL', `${exportType}:${outputName}:${output.url}`)
   }
 
+  // Mobile browsers never fire paste events outside editable fields, so a button reads the
+  // clipboard directly (each browser shows its own confirmation).
+  const canPaste = typeof navigator.clipboard?.read === 'function'
+
+  async function paste() {
+    error = ''
+    try {
+      for (const item of await navigator.clipboard.read()) {
+        const type = item.types.find((t) => t.startsWith('image/'))
+        if (!type) continue
+        const blob = await item.getType(type)
+        loadFile(new File([blob], `image.${type.split('/')[1]}`, { type }))
+        return
+      }
+      error = 'No image on the clipboard.'
+    } catch (e) {
+      if ((e as Error).name !== 'NotAllowedError') error = 'Could not read the clipboard.'
+    }
+  }
+
   async function share() {
     if (!output) return
     const file = new File([output.blob], outputName, { type: exportType })
@@ -104,9 +125,21 @@
     dragging = false
     if (!internalDrag) loadFile(e.dataTransfer?.files[0])
   }}
+  onpaste={(e) => {
+    const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'))
+    if (!file) return
+    e.preventDefault()
+    loadFile(file)
+  }}
 />
 
-<div class="app" class:empty={!image}>
+<div class="app" class:empty={!image} class:pasteable={canPaste}>
+  {#if !image && canPaste}
+    <div class="bar">
+      <button onclick={paste}><Icon name="paste" /> Paste</button>
+    </div>
+  {/if}
+
   {#if image}
     <nav class="bar">
       {#each presets as preset, i}
@@ -115,21 +148,17 @@
         </button>
       {/each}
       <button onclick={() => (rotated = !rotated)} aria-label="Rotate" title="Rotate">
-        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-          <path
-            d="M4 12a8 8 0 0 1 14-5.3M20 4v4h-4M20 12a8 8 0 0 1-14 5.3M4 20v-4h4"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <Icon name="rotate" />
       </button>
+      {#if canPaste}
+        <button onclick={paste} aria-label="Paste" title="Paste">
+          <Icon name="paste" />
+        </button>
+      {/if}
     </nav>
   {/if}
 
-  <label class="stage" class:dragging title={image ? 'Drag out to share · click or drop to replace' : undefined}>
+  <label class="stage" class:dragging title={image ? 'Drag out to share · click, drop or paste to replace' : undefined}>
     <input type="file" accept="image/*" onchange={(e) => loadFile(e.currentTarget.files?.[0])} />
     {#if image}
       {#if output}
@@ -141,7 +170,7 @@
         />
       {/if}
     {:else}
-      <span class="prompt">Click or drag an image</span>
+      <span class="prompt">Click, drag or paste an image</span>
     {/if}
   </label>
 
@@ -149,12 +178,12 @@
 
   {#if image}
     <div class="bar">
-      <button class="primary" onclick={download}>Download</button>
+      <button class="primary" onclick={download}><Icon name="download" /> Download</button>
       <label class="swatch" style:background={color} title="Matting color">
         <input type="color" bind:value={color} aria-label="Matting color" />
       </label>
       {#if canShare}
-        <button class="primary" onclick={share}>Share</button>
+        <button class="primary" onclick={share}><Icon name="share" /> Share</button>
       {/if}
     </div>
   {/if}
@@ -173,6 +202,10 @@
     grid-template-rows: 1fr auto;
   }
 
+  .app.empty.pasteable {
+    grid-template-rows: auto 1fr auto;
+  }
+
   .bar {
     display: flex;
     gap: 0.75rem;
@@ -188,8 +221,10 @@
     font: inherit;
     font-weight: 600;
     cursor: pointer;
-    display: grid;
-    place-items: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
   }
 
   .bar button.active {

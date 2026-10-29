@@ -4,13 +4,14 @@ A simple client-side app that takes an image and adds matting around it so the r
 
 ## Flow
 
-1. **Empty state:** a single large dashed drop zone fills the screen. Click it to pick an image or drag one in.
+1. **Empty state:** a single large dashed drop zone fills the screen. Click it to pick an image, drag one in, or paste one from the clipboard.
 2. **Preview:** once an image is loaded, the matted result is shown in the center, with a toolbar on top and actions at the bottom.
 
 ## Top bar: presets
 
 - Aspect ratio presets: **2×2**, **2×4**, **9×16**. 2×2 is selected by default.
 - **Rotate** button: flips the preset dimensions (e.g. 9×16 → 16×9). It does not rotate the image.
+- **Paste** button (last): loads the first image from the clipboard via the Async Clipboard API, replacing the current one. Also shown full width above the drop zone in the empty state. Hidden when the browser can't read the clipboard. This is the paste path on mobile, where paste events don't fire outside text fields.
 
 ## Matting
 
@@ -29,6 +30,7 @@ A simple client-side app that takes an image and adds matting around it so the r
 
 ## Other
 
-- Clicking the preview, or dropping a new image anywhere, replaces the image.
+- Clicking the preview, dropping a new image anywhere, or pasting one replaces the image.
+- Pasting (⌘V / Ctrl+V) uses the first image on the clipboard; non-image pastes are ignored.
 - Everything runs in the browser; images never leave the device.
 - No settings persist between sessions.
