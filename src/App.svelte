@@ -27,6 +27,9 @@
   let output = $state<{ blob: Blob; url: string }>()
   // Whether `output` matches the current settings; until it does, the live canvas is shown.
   let fresh = $state(false)
+  // The output URL the <img> has finished decoding. Swapping before that paints a blank frame.
+  let decodedUrl = $state('')
+  const showOutput = $derived(fresh && !!output && decodedUrl === output.url)
   let liveCanvas = $state<HTMLCanvasElement>()
   const canvas = document.createElement('canvas')
 
@@ -264,15 +267,23 @@
   >
     <input type="file" accept="image/*" onchange={(e) => loadFile(e.currentTarget.files?.[0])} />
     {#if image}
-      {#if output && fresh}
+      {#if output}
         <img
           src={output.url}
           alt="Matted preview"
+          class:pending={!showOutput}
+          onload={(e) => {
+            const img = e.currentTarget as HTMLImageElement
+            img
+              .decode()
+              .catch(() => {})
+              .then(() => (decodedUrl = img.src))
+          }}
           ondragstart={onPreviewDragStart}
           ondragend={() => (internalDrag = false)}
         />
       {/if}
-      <canvas bind:this={liveCanvas} hidden={fresh}></canvas>
+      <canvas bind:this={liveCanvas} hidden={showOutput}></canvas>
       <span class="hint" class:visible={adjusting}>Padding {Math.round(padding * 100)}%</span>
     {:else}
       <span class="prompt">Click, drag or paste an image</span>
@@ -410,6 +421,10 @@
 
   canvas[hidden] {
     display: none;
+  }
+
+  img.pending {
+    visibility: hidden;
   }
 
   .hint {
