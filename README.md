@@ -4,6 +4,8 @@ Client-side Svelte 5 + TypeScript app built with Vite, deployed to GitHub Pages.
 
 ## Scripts
 
+The Node version is pinned in `.nvmrc`; run `nvm use` first.
+
 ```sh
 npm run dev      # start dev server
 npm run check    # type-check (svelte-check + tsc)
