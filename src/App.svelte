@@ -8,7 +8,9 @@
   let color = $state(defaultMattingColor)
   let dragging = $state(false)
   let error = $state('')
-  let canvas = $state<HTMLCanvasElement>()
+  let internalDrag = false
+  let output = $state<{ blob: Blob; url: string }>()
+  const canvas = document.createElement('canvas')
 
   const ratio = $derived.by(() => {
     const p = presets[presetIndex]
@@ -21,8 +23,23 @@
     typeof navigator.canShare === 'function' &&
     navigator.canShare({ files: [new File([], 'test.jpg', { type: exportType })] })
 
+  // Render offscreen and encode once settings settle; the preview, download, share and
+  // drag-out all use the same encoded file.
   $effect(() => {
-    if (image && canvas) drawMatted(canvas, image, ratio, color)
+    if (!image) return
+    const [img, r, c] = [image, ratio, color]
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      drawMatted(canvas, img, r, c)
+      const blob = await toBlob(canvas)
+      if (cancelled) return
+      if (output) URL.revokeObjectURL(output.url)
+      output = { blob, url: URL.createObjectURL(blob) }
+    }, 120)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
   })
 
   function loadFile(file: File | undefined) {
@@ -47,18 +64,25 @@
     img.src = url
   }
 
-  async function download() {
-    if (!canvas) return
+  function download() {
+    if (!output) return
     const a = document.createElement('a')
-    a.href = URL.createObjectURL(await toBlob(canvas))
+    a.href = output.url
     a.download = outputName
     a.click()
-    URL.revokeObjectURL(a.href)
+  }
+
+  function onPreviewDragStart(e: DragEvent) {
+    if (!output || !e.dataTransfer) return
+    internalDrag = true
+    e.dataTransfer.effectAllowed = 'copy'
+    // Chromium uses this to drop a named file onto the desktop or into other apps.
+    e.dataTransfer.setData('DownloadURL', `${exportType}:${outputName}:${output.url}`)
   }
 
   async function share() {
-    if (!canvas) return
-    const file = new File([await toBlob(canvas)], outputName, { type: exportType })
+    if (!output) return
+    const file = new File([output.blob], outputName, { type: exportType })
     try {
       await navigator.share({ files: [file] })
     } catch (e) {
@@ -70,7 +94,7 @@
 <svelte:window
   ondragover={(e) => {
     e.preventDefault()
-    dragging = true
+    if (!internalDrag) dragging = true
   }}
   ondragleave={(e) => {
     if (!e.relatedTarget) dragging = false
@@ -78,7 +102,7 @@
   ondrop={(e) => {
     e.preventDefault()
     dragging = false
-    loadFile(e.dataTransfer?.files[0])
+    if (!internalDrag) loadFile(e.dataTransfer?.files[0])
   }}
 />
 
@@ -105,10 +129,17 @@
     </nav>
   {/if}
 
-  <label class="stage" class:dragging title={image ? 'Click or drop to replace the image' : undefined}>
+  <label class="stage" class:dragging title={image ? 'Drag out to share · click or drop to replace' : undefined}>
     <input type="file" accept="image/*" onchange={(e) => loadFile(e.currentTarget.files?.[0])} />
     {#if image}
-      <canvas bind:this={canvas}></canvas>
+      {#if output}
+        <img
+          src={output.url}
+          alt="Matted preview"
+          ondragstart={onPreviewDragStart}
+          ondragend={() => (internalDrag = false)}
+        />
+      {/if}
     {:else}
       <span class="prompt">Click or drag an image</span>
     {/if}
@@ -222,7 +253,7 @@
     text-align: center;
   }
 
-  canvas {
+  img {
     max-width: 100%;
     max-height: 100%;
     box-shadow: 0 4px 24px rgb(0 0 0 / 0.18);

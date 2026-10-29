@@ -24,6 +24,7 @@ A simple client-side app that takes an image and adds matting around it so the r
 
 - **Download:** saves the result as JPEG (quality 0.92), named `<original>-matted.jpg`.
 - **Color:** a small round swatch between Download and Share, filled with the current matting color. Clicking it opens the system color picker; the preview updates live.
+- **Drag out:** the preview image can be dragged out of the browser (to the desktop, a chat or an email) to drop the matted JPEG, named like the download.
 - **Share:** opens the system share sheet via the Web Share API. Hidden when the browser can't share files.
 
 ## Other
