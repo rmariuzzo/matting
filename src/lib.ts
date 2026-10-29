@@ -2,7 +2,7 @@ export type Ratio = { w: number; h: number }
 
 export const presets: Ratio[] = [
   { w: 2, h: 2 },
-  { w: 2, h: 4 },
+  { w: 4, h: 5 },
   { w: 9, h: 16 },
 ]
 

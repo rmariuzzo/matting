@@ -9,7 +9,7 @@ A simple client-side app that takes an image and adds matting around it so the r
 
 ## Top bar: presets
 
-- Aspect ratio presets: **2×2**, **2×4**, **9×16**. 2×2 is selected by default.
+- Aspect ratio presets: **2×2**, **4×5** (WhatsApp chat messages), **9×16** (WhatsApp Status, Reels, Stories). 2×2 is selected by default.
 - **Rotate** button: flips the preset dimensions (e.g. 9×16 → 16×9). It does not rotate the image.
 - **Paste** button (last): loads the first image from the clipboard via the Async Clipboard API, replacing the current one. Also shown full width above the drop zone in the empty state. Hidden when the browser can't read the clipboard. This is the paste path on mobile, where paste events don't fire outside text fields.
 
