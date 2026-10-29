@@ -16,7 +16,9 @@ A simple client-side app that takes an image and adds matting around it so the r
 
 - The image is centered and never scaled or cropped.
 - Every side gets at least 6% of the image's longer side as matting; the canvas then grows on one axis to reach the selected ratio.
-- Matting color: defaults to Sand light (`#EBE2CC`) from the [color scheme](color-scheme.md); changeable from the bottom bar.
+- Matting color: detected from the image's edges each time an image is loaded, and changeable from the bottom bar.
+  - The outer edge pixels (on a ~100px downscaled copy) are grouped into coarse color buckets; the average of the most common bucket wins, so a dominant edge color beats a muddy overall average.
+  - Transparent edge pixels are ignored. If no usable pixels remain, it falls back to Sand light (`#EBE2CC`) from the [color scheme](color-scheme.md).
 
 ## Bottom bar: actions
 

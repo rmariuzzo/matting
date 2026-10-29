@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { defaultMattingColor, drawMatted, exportExtension, exportType, presets, toBlob } from './lib'
+  import { borderColor, defaultMattingColor, drawMatted, exportExtension, exportType, presets, toBlob } from './lib'
 
   let image = $state<HTMLImageElement>()
   let fileName = $state('')
@@ -38,6 +38,7 @@
       if (image) URL.revokeObjectURL(image.src)
       image = img
       fileName = file.name
+      color = borderColor(img)
     }
     img.onerror = () => {
       error = 'Could not read that image.'
