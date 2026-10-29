@@ -1,15 +1,20 @@
 :root {
+  --color-sand-light: #ebe2cc;
+  --color-sand: #ded6c1;
+  --color-stone: #cfc6b1;
+  --color-stone-dark: #b7b09e;
+  --color-ink: #3b3629;
+
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
-  color-scheme: light dark;
+  color: var(--color-ink);
+  background: var(--color-sand);
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  display: grid;
-  place-items: center;
-}
-
-main {
-  text-align: center;
 }
