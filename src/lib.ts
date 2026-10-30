@@ -7,8 +7,8 @@ export const presets: Ratio[] = [
 ]
 
 export const defaultMattingColor = '#ebe2cc'
-export const exportType = 'image/jpeg'
-export const exportExtension = 'jpg'
+export const exportType = 'image/png'
+export const exportExtension = 'png'
 
 // Minimum matting on every side, as a fraction of the image's longer side.
 export const defaultPadding = 0.06
@@ -127,6 +127,6 @@ function boxBlurLine(data: Uint8ClampedArray, start: number, step: number, lengt
 
 export function toBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Export failed'))), exportType, 0.92),
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Export failed'))), exportType),
   )
 }

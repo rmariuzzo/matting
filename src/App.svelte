@@ -47,7 +47,7 @@
 
   const canShare =
     typeof navigator.canShare === 'function' &&
-    navigator.canShare({ files: [new File([], 'test.jpg', { type: exportType })] })
+    navigator.canShare({ files: [new File([], `test.${exportExtension}`, { type: exportType })] })
 
   // Render offscreen and encode once settings settle; the preview, download, share and
   // drag-out all use the same encoded file.

@@ -22,7 +22,7 @@ A simple client-side app that takes an image and adds matting around it so the r
   - **Mobile:** pinch the preview; the image's share of the frame follows the finger spread. A pinch never opens the file picker.
   - A "Padding N%" pill shows over the preview while adjusting, then fades.
   - It is kept when a new image is loaded.
-- While settings change, a downscaled preview is drawn straight to the screen; the JPEG is encoded once changes settle.
+- While settings change, a downscaled preview is drawn straight to the screen; the PNG is encoded once changes settle.
 - Blurred image: instead of a color, the matting can be a heavily blurred copy of the image, covering the whole frame (the overflow is cropped evenly). The sharp image stays on top, and the choice is kept when a new image is loaded.
   - Blurred in JS on a ~128px copy and scaled up, since Safari doesn't support canvas filters. Transparent areas show the detected color.
 - Matting color: detected from the image's edges each time an image is loaded, and changeable from the bottom bar.
@@ -31,10 +31,10 @@ A simple client-side app that takes an image and adds matting around it so the r
 
 ## Bottom bar: actions
 
-- **Download:** saves the result as JPEG (quality 0.92), named `<original>-matted.jpg`.
+- **Download:** saves the result as PNG, named `<original>-matted.png`.
 - **Color:** a small round swatch between Download and Share, filled with the current matting color. Clicking it opens the system color picker; the preview updates live. While the blurred image is selected, the first click only switches back to color matting, and the next one opens the picker.
 - **Blurred image:** a matching round swatch next to Color, showing the blurred image. Clicking it switches to blurred matting. The selected swatch has the darker ring.
-- **Drag out:** the preview image can be dragged out of the browser (to the desktop, a chat or an email) to drop the matted JPEG, named like the download.
+- **Drag out:** the preview image can be dragged out of the browser (to the desktop, a chat or an email) to drop the matted PNG, named like the download.
 - **Share:** opens the system share sheet via the Web Share API. Hidden when the browser can't share files.
 
 ## Other
