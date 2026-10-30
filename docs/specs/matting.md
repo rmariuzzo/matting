@@ -32,7 +32,7 @@ A simple client-side app that takes an image and adds matting around it so the r
 ## Bottom bar: actions
 
 - **Download:** saves the result as JPEG (quality 0.92), named `<original>-matted.jpg`.
-- **Color:** a small round swatch between Download and Share, filled with the current matting color. Clicking it switches to color matting and opens the system color picker; the preview updates live.
+- **Color:** a small round swatch between Download and Share, filled with the current matting color. Clicking it opens the system color picker; the preview updates live. While the blurred image is selected, the first click only switches back to color matting, and the next one opens the picker.
 - **Blurred image:** a matching round swatch next to Color, showing the blurred image. Clicking it switches to blurred matting. The selected swatch has the darker ring.
 - **Drag out:** the preview image can be dragged out of the browser (to the desktop, a chat or an email) to drop the matted JPEG, named like the download.
 - **Share:** opens the system share sheet via the Web Share API. Hidden when the browser can't share files.

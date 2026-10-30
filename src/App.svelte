@@ -302,7 +302,16 @@
     <div class="bar">
       <button class="primary" onclick={download}><Icon name="download" /> Download</button>
       <label class="swatch" class:selected={!useBackdrop} style:background={color} title="Matting color">
-        <input type="color" bind:value={color} aria-label="Matting color" onclick={() => (useBackdrop = false)} />
+        <input
+          type="color"
+          bind:value={color}
+          aria-label="Matting color"
+          onclick={(e) => {
+            // Leaving the blurred matting only selects the color; the next click opens the picker.
+            if (useBackdrop) e.preventDefault()
+            useBackdrop = false
+          }}
+        />
       </label>
       <button
         class="swatch"
