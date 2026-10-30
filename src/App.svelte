@@ -2,6 +2,7 @@
   import type { Attachment } from 'svelte/attachments'
   import Icon from './Icon.svelte'
   import {
+    blurredBackdrop,
     borderColor,
     defaultMattingColor,
     defaultPadding,
@@ -18,6 +19,10 @@
   let presetIndex = $state(0)
   let rotated = $state(false)
   let color = $state(defaultMattingColor)
+  let backdrop = $state<HTMLCanvasElement>()
+  let useBackdrop = $state(false)
+  const backdropUrl = $derived(backdrop?.toDataURL())
+  const background = $derived(useBackdrop && backdrop ? backdrop : color)
   let padding = $state(defaultPadding)
   let adjusting = $state(false)
   let adjustTimer: ReturnType<typeof setTimeout>
@@ -48,13 +53,13 @@
   // drag-out all use the same encoded file.
   $effect(() => {
     if (!image) return
-    const [img, r, c, p] = [image, ratio, color, padding]
+    const [img, r, b, p] = [image, ratio, background, padding]
     fresh = false
     // Encoding mid-gesture is wasted work; the live canvas covers it.
     if (adjusting) return
     let cancelled = false
     const timer = setTimeout(async () => {
-      drawMatted(canvas, img, r, c, p)
+      drawMatted(canvas, img, r, b, p)
       const blob = await toBlob(canvas)
       if (cancelled) return
       if (output) URL.revokeObjectURL(output.url)
@@ -71,7 +76,7 @@
   $effect(() => {
     if (!image || !liveCanvas || fresh) return
     const scale = Math.min(1, 2048 / Math.max(image.width, image.height))
-    drawMatted(liveCanvas, image, ratio, color, padding, scale)
+    drawMatted(liveCanvas, image, ratio, background, padding, scale)
   })
 
   function setPadding(value: number) {
@@ -153,6 +158,7 @@
       image = img
       fileName = file.name
       color = borderColor(img)
+      backdrop = blurredBackdrop(img, color)
     }
     img.onerror = () => {
       error = 'Could not read that image.'
@@ -295,9 +301,18 @@
   {#if image}
     <div class="bar">
       <button class="primary" onclick={download}><Icon name="download" /> Download</button>
-      <label class="swatch" style:background={color} title="Matting color">
-        <input type="color" bind:value={color} aria-label="Matting color" />
+      <label class="swatch" class:selected={!useBackdrop} style:background={color} title="Matting color">
+        <input type="color" bind:value={color} aria-label="Matting color" onclick={() => (useBackdrop = false)} />
       </label>
+      <button
+        class="swatch"
+        class:selected={useBackdrop}
+        style:background-image="url({backdropUrl})"
+        onclick={() => (useBackdrop = true)}
+        aria-label="Blurred image matting"
+        aria-pressed={useBackdrop}
+        title="Blurred image matting"
+      ></button>
       {#if canShare}
         <button class="primary" onclick={share}><Icon name="share" /> Share</button>
       {/if}
@@ -349,16 +364,23 @@
     color: var(--color-sand-light);
   }
 
-  .swatch {
+  .bar .swatch {
     position: relative;
     flex: none;
     align-self: center;
     width: 2.75rem;
     height: 2.75rem;
+    padding: 0;
     border-radius: 50%;
-    border: 3px solid var(--color-ink);
+    border: 3px solid var(--color-stone-dark);
     box-shadow: inset 0 0 0 2px var(--color-sand-light);
+    background-size: cover;
+    background-position: center;
     cursor: pointer;
+  }
+
+  .bar .swatch.selected {
+    border-color: var(--color-ink);
   }
 
   .swatch input {

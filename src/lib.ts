@@ -14,12 +14,16 @@ export const exportExtension = 'jpg'
 export const defaultPadding = 0.06
 export const maxPadding = 0.5
 
+// The backdrop is blurred at this size and scaled up; the radius is a fraction of its longer side.
+const backdropSize = 128
+const backdropBlur = 0.08
+
 // `scale` shrinks the whole render (for a quick live preview); 1 is full resolution.
 export function drawMatted(
   canvas: HTMLCanvasElement,
   image: HTMLImageElement,
   ratio: Ratio,
-  color: string,
+  background: string | HTMLCanvasElement,
   padding: number,
   scale = 1,
 ) {
@@ -34,8 +38,16 @@ export function drawMatted(
   canvas.height = Math.round(height * scale)
   const ctx = canvas.getContext('2d')!
   ctx.scale(scale, scale)
-  ctx.fillStyle = color
-  ctx.fillRect(0, 0, width, height)
+  if (typeof background === 'string') {
+    ctx.fillStyle = background
+    ctx.fillRect(0, 0, width, height)
+  } else {
+    // Cover the frame, cropping the overflow evenly.
+    const cover = Math.max(width / background.width, height / background.height)
+    const [w, h] = [background.width * cover, background.height * cover]
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(background, (width - w) / 2, (height - h) / 2, w, h)
+  }
   ctx.drawImage(image, Math.round((width - image.width) / 2), Math.round((height - image.height) / 2))
 }
 
@@ -75,6 +87,42 @@ export function borderColor(image: HTMLImageElement): string {
   if (!best) return defaultMattingColor
   const hex = (v: number) => Math.round(v / best.count).toString(16).padStart(2, '0')
   return `#${hex(best.r)}${hex(best.g)}${hex(best.b)}`
+}
+
+// A heavily blurred copy of the image; `fill` shows through its transparent areas. Blurs in JS
+// because Safari doesn't support `ctx.filter`; three box blurs approximate a gaussian.
+export function blurredBackdrop(image: HTMLImageElement, fill: string): HTMLCanvasElement {
+  const scale = Math.min(1, backdropSize / Math.max(image.width, image.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(image.width * scale))
+  canvas.height = Math.max(1, Math.round(image.height * scale))
+  const { width, height } = canvas
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+  ctx.fillStyle = fill
+  ctx.fillRect(0, 0, width, height)
+  ctx.drawImage(image, 0, 0, width, height)
+
+  const pixels = ctx.getImageData(0, 0, width, height)
+  const radius = Math.max(1, Math.round(Math.max(width, height) * backdropBlur))
+  for (let pass = 0; pass < 3; pass++) {
+    for (let y = 0; y < height; y++) boxBlurLine(pixels.data, y * width, 1, width, radius)
+    for (let x = 0; x < width; x++) boxBlurLine(pixels.data, x, width, height, radius)
+  }
+  ctx.putImageData(pixels, 0, 0)
+  return canvas
+}
+
+// Blurs one row or column of RGB in place, repeating the edge pixels past its ends.
+function boxBlurLine(data: Uint8ClampedArray, start: number, step: number, length: number, radius: number) {
+  for (let channel = 0; channel < 3; channel++) {
+    const at = (i: number) => (start + i * step) * 4 + channel
+    const line = Array.from({ length }, (_, i) => data[at(i)])
+    for (let i = 0; i < length; i++) {
+      let sum = 0
+      for (let j = i - radius; j <= i + radius; j++) sum += line[Math.min(length - 1, Math.max(0, j))]
+      data[at(i)] = sum / (radius * 2 + 1)
+    }
+  }
 }
 
 export function toBlob(canvas: HTMLCanvasElement): Promise<Blob> {
